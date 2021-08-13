@@ -65,6 +65,6 @@ impl io::Write for Buffer {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        Err(io::ErrorKind::Unsupported.into())
+        Err(io::ErrorKind::InvalidInput.into())
     }
 }
