@@ -1,13 +1,13 @@
 [package]
 name = "rustls-split"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2018"
 
 license = "MIT"
 description = "A rustls TCPStream wrapper that can send and receive from separate threads."
-homepage = "https://github.com/patins/rustls-split"
+homepage = "https://github.com/zenithdb/rustls-split"
 documentation = "https://docs.rs/rustls-split"
-repository = "https://github.com/patins/rustls-split"
+repository = "https://github.com/zenithdb/rustls-split"
 readme = "README.md"
 
 [dependencies]
