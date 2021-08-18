@@ -1,4 +1,31 @@
 use std::io;
+
+pub struct BufCfg<D: Into<Vec<u8>>> {
+    initial_data: D,
+    min_capacity: usize,
+}
+
+impl BufCfg<[u8; 0]> {
+    /// Configure an empty buffer with specified capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            initial_data: [],
+            min_capacity: capacity,
+        }
+    }
+}
+
+impl<D: Into<Vec<u8>>> BufCfg<D> {
+    /// Configure a buffer with the data in `initial_data`.
+    /// The buffer capacity will be determined by the greater of `initial_data.len()` and `min_capacity`.
+    pub fn with_data(initial_data: D, min_capacity: usize) -> Self {
+        Self {
+            initial_data,
+            min_capacity,
+        }
+    }
+}
+
 pub struct Buffer {
     buf: Box<[u8]>,
     start: usize,
@@ -6,13 +33,20 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn new(size: usize) -> Self {
-        assert_ne!(size, 0);
-        Self {
-            buf: vec![0u8; size].into_boxed_slice(),
-            start: 0,
-            end: 0,
+    pub fn build_from<D: Into<Vec<u8>>>(cfg: BufCfg<D>) -> Self {
+        let mut buf: Vec<u8> = cfg.initial_data.into();
+        let end = buf.len();
+
+        if buf.len() < cfg.min_capacity {
+            // TODO ensure we're not wasting extra capacity
+            buf.resize(cfg.min_capacity, 0u8);
         }
+
+        assert_ne!(buf.len(), 0); // TODO add warnings about panics to docs
+
+        let buf = buf.into_boxed_slice();
+
+        Self { buf, start: 0, end }
     }
 
     pub fn read_from(&mut self, reader: &mut impl io::Read) -> io::Result<usize> {

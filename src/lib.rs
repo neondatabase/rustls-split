@@ -1,12 +1,13 @@
 use std::{
     io,
-    net::{TcpStream, Shutdown},
+    net::{Shutdown, TcpStream},
     sync::{Arc, Mutex, MutexGuard},
 };
 
 use rustls::Session;
 
 mod buffer;
+pub use buffer::BufCfg;
 use buffer::Buffer;
 
 struct Shared<S: Session> {
@@ -56,7 +57,7 @@ impl<S: Session> io::Read for ReadHalf<S> {
     }
 }
 
-impl <S: Session> ReadHalf<S> {
+impl<S: Session> ReadHalf<S> {
     pub fn shutdown(&mut self, how: Shutdown) -> io::Result<()> {
         self.shared.stream.shutdown(how)
     }
@@ -131,10 +132,11 @@ impl<S: Session> io::Write for WriteHalf<S> {
     }
 }
 
-pub fn split<S: Session>(
+pub fn split<S: Session, D1: Into<Vec<u8>>, D2: Into<Vec<u8>>>(
     stream: TcpStream,
     session: S,
-    buffer_size: usize,
+    read_buf_cfg: BufCfg<D1>,
+    write_buf_cfg: BufCfg<D2>,
 ) -> (ReadHalf<S>, WriteHalf<S>) {
     assert!(!session.is_handshaking());
 
@@ -145,12 +147,12 @@ pub fn split<S: Session>(
 
     let read_half = ReadHalf {
         shared: shared.clone(),
-        buf: Buffer::new(buffer_size),
+        buf: Buffer::build_from(read_buf_cfg),
     };
 
     let write_half = WriteHalf {
         shared,
-        buf: Buffer::new(buffer_size),
+        buf: Buffer::build_from(write_buf_cfg),
     };
 
     (read_half, write_half)

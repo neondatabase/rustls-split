@@ -1,6 +1,6 @@
 use std::{
-    io::{Cursor, Read, Write},
-    net::{TcpListener, TcpStream, Shutdown},
+    io::{BufRead, BufReader, Cursor, Read, Write},
+    net::{Shutdown, TcpListener, TcpStream},
     sync::Arc,
 };
 
@@ -43,6 +43,8 @@ fn e2e() {
     const ITERS: u64 = 1_000_000;
     const MSG: &[u8] = b"HELLO WORLD";
 
+    const BUF_SIZE: usize = 8192;
+
     let server_thread = std::thread::Builder::new()
         .name("server".into())
         .spawn(move || {
@@ -50,7 +52,18 @@ fn e2e() {
             let mut session = rustls::ServerSession::new(&server_cfg);
             session.complete_io(&mut server_stream).unwrap();
 
-            let (mut read_half, mut write_half) = rustls_split::split(server_stream, session, 8192);
+            let mut server_buf_reader = BufReader::new(server_stream);
+            server_buf_reader.fill_buf().unwrap();
+            let buf = server_buf_reader.buffer().to_owned();
+            assert!(!buf.is_empty());
+            let server_stream = server_buf_reader.into_inner();
+
+            let (mut read_half, mut write_half) = rustls_split::split(
+                server_stream,
+                session,
+                rustls_split::BufCfg::with_data(buf, BUF_SIZE),
+                rustls_split::BufCfg::with_capacity(BUF_SIZE),
+            );
 
             let bytes_copied = std::io::copy(&mut read_half, &mut write_half).unwrap();
             assert_eq!(bytes_copied, ITERS * MSG.len() as u64);
@@ -64,7 +77,12 @@ fn e2e() {
 
     session.complete_io(&mut client_stream).unwrap();
 
-    let (mut read_half, mut write_half) = rustls_split::split(client_stream, session, 8192);
+    let (mut read_half, mut write_half) = rustls_split::split(
+        client_stream,
+        session,
+        rustls_split::BufCfg::with_capacity(BUF_SIZE),
+        rustls_split::BufCfg::with_capacity(BUF_SIZE),
+    );
 
     let writer_thread = std::thread::Builder::new()
         .name("writer".into())
