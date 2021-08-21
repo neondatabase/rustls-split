@@ -12,6 +12,6 @@ readme = "README.md"
 
 [dependencies]
 rustls = "0.19"
-webpki = "0.21"
 
 [dev-dependencies]
+webpki = "0.21"
