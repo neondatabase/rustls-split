@@ -1,9 +1,9 @@
 [package]
 name = "rustls-split"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2018"
 
-license = "MIT"
+license = "MIT OR Apache-2.0 OR ISC"
 description = "A rustls TCPStream wrapper that can send and receive from separate threads."
 homepage = "https://github.com/zenithdb/rustls-split"
 documentation = "https://docs.rs/rustls-split"
