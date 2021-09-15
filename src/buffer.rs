@@ -26,14 +26,14 @@ impl<D: Into<Vec<u8>>> BufCfg<D> {
     }
 }
 
-pub struct Buffer {
+struct Internals {
     buf: Box<[u8]>,
     start: usize,
     end: usize,
 }
 
-impl Buffer {
-    pub fn build_from<D: Into<Vec<u8>>>(cfg: BufCfg<D>) -> Self {
+impl Internals {
+    fn build_from<D: Into<Vec<u8>>>(cfg: BufCfg<D>) -> Self {
         let mut buf: Vec<u8> = cfg.initial_data.into();
         let end = buf.len();
 
@@ -49,28 +49,17 @@ impl Buffer {
         Self { buf, start: 0, end }
     }
 
-    pub fn read_from(&mut self, reader: &mut impl io::Read) -> io::Result<usize> {
-        let bytes_read = reader.read(&mut self.buf[self.end..])?;
-        self.end += bytes_read;
-        Ok(bytes_read)
-    }
-
-    pub fn write_to(&mut self, writer: &mut impl io::Write) -> io::Result<usize> {
-        let bytes_written = writer.write(&self.buf[self.start..self.end])?;
-        self.start += bytes_written;
-        self.check_start();
-        Ok(bytes_written)
-    }
-
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.end == 0
     }
 
-    pub fn is_full(&self) -> bool {
+    fn is_full(&self) -> bool {
         self.end == self.buf.len()
     }
 
-    fn check_start(&mut self) {
+    fn advance_start(&mut self, delta: usize) {
+        self.start += delta;
+
         if self.start == self.end {
             self.start = 0;
             self.end = 0;
@@ -78,23 +67,71 @@ impl Buffer {
     }
 }
 
-impl io::Read for Buffer {
+pub struct ReadBuffer {
+    internals: Internals,
+}
+
+impl ReadBuffer {
+    pub fn build_from<D: Into<Vec<u8>>>(cfg: BufCfg<D>) -> Self {
+        Self {
+            internals: Internals::build_from(cfg),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.internals.is_empty()
+    }
+
+    pub fn read_from(&mut self, reader: &mut impl io::Read) -> io::Result<usize> {
+        let bytes_read = reader.read(&mut self.internals.buf[self.internals.end..])?;
+        self.internals.end += bytes_read;
+        Ok(bytes_read)
+    }
+}
+
+impl io::Read for ReadBuffer {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let src = &self.buf[self.start..self.end];
+        let src = &self.internals.buf[self.internals.start..self.internals.end];
         let len = std::cmp::min(src.len(), buf.len());
         buf[..len].copy_from_slice(&src[..len]);
-        self.start += len;
-        self.check_start();
+        self.internals.advance_start(len);
         Ok(len)
     }
 }
 
-impl io::Write for Buffer {
+pub struct WriteBuffer {
+    internals: Internals,
+}
+
+impl WriteBuffer {
+    pub fn build_from<D: Into<Vec<u8>>>(cfg: BufCfg<D>) -> Self {
+        Self {
+            internals: Internals::build_from(cfg),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.internals.is_empty()
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.internals.is_full()
+    }
+
+    pub fn write_to(&mut self, writer: &mut impl io::Write) -> io::Result<usize> {
+        let bytes_written =
+            writer.write(&self.internals.buf[self.internals.start..self.internals.end])?;
+        self.internals.advance_start(bytes_written);
+        Ok(bytes_written)
+    }
+}
+
+impl io::Write for WriteBuffer {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let dst = &mut self.buf[self.end..];
+        let dst = &mut self.internals.buf[self.internals.end..];
         let len = std::cmp::min(dst.len(), buf.len());
         dst[..len].copy_from_slice(&buf[..len]);
-        self.end += len;
+        self.internals.end += len;
         Ok(len)
     }
 

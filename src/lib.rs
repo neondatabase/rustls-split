@@ -8,7 +8,7 @@ use rustls::Session;
 
 mod buffer;
 pub use buffer::BufCfg;
-use buffer::Buffer;
+use buffer::{ReadBuffer, WriteBuffer};
 
 struct Shared<S: Session> {
     stream: TcpStream,
@@ -17,7 +17,7 @@ struct Shared<S: Session> {
 
 pub struct ReadHalf<S: Session> {
     shared: Arc<Shared<S>>,
-    buf: Buffer,
+    buf: ReadBuffer,
 }
 
 impl<S: Session> io::Read for ReadHalf<S> {
@@ -65,7 +65,7 @@ impl<S: Session> ReadHalf<S> {
 
 pub struct WriteHalf<S: Session> {
     shared: Arc<Shared<S>>,
-    buf: Buffer,
+    buf: WriteBuffer,
 }
 
 impl<S: Session> WriteHalf<S> {
@@ -83,7 +83,7 @@ impl<S: Session> WriteHalf<S> {
 }
 
 fn wants_write_loop<'a, S: Session>(
-    buf: &mut Buffer,
+    buf: &mut WriteBuffer,
     shared: &'a Shared<S>,
     mut session: MutexGuard<'a, S>,
 ) -> io::Result<MutexGuard<'a, S>> {
@@ -103,7 +103,7 @@ fn wants_write_loop<'a, S: Session>(
 }
 
 fn flush<'a, S: Session>(
-    buf: &mut Buffer,
+    buf: &mut WriteBuffer,
     shared: &'a Shared<S>,
     mut session: MutexGuard<'a, S>,
 ) -> io::Result<()> {
@@ -147,12 +147,12 @@ pub fn split<S: Session, D1: Into<Vec<u8>>, D2: Into<Vec<u8>>>(
 
     let read_half = ReadHalf {
         shared: shared.clone(),
-        buf: Buffer::build_from(read_buf_cfg),
+        buf: ReadBuffer::build_from(read_buf_cfg),
     };
 
     let write_half = WriteHalf {
         shared,
-        buf: Buffer::build_from(write_buf_cfg),
+        buf: WriteBuffer::build_from(write_buf_cfg),
     };
 
     (read_half, write_half)
