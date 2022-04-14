@@ -1,6 +1,6 @@
 [package]
 name = "rustls-split"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2018"
 
 license = "MIT OR Apache-2.0 OR ISC"
@@ -11,7 +11,7 @@ repository = "https://github.com/zenithdb/rustls-split"
 readme = "README.md"
 
 [dependencies]
-rustls = "0.19"
+rustls = "0.20"
 
 [dev-dependencies]
 webpki = "0.21"
