@@ -46,15 +46,7 @@ impl io::Read for ReadHalf {
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         }
 
-        match connection.reader().read(buf) {
-            Ok(0) => Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "TLS connection closed improperly",
-            )),
-            ok @ Ok(_) => ok,
-            Err(ref e) if e.kind() == io::ErrorKind::ConnectionAborted => Ok(0),
-            err @ Err(_) => err,
-        }
+        connection.reader().read(buf)
     }
 }
 
